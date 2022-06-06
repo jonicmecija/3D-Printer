@@ -6,7 +6,8 @@
 #include "Math.h"
 
 
-#define MAX_MOTOR_SPEED 100
+// The arduino mega can run 4000 steps per second since it runs a 16Mhz processor
+#define MAX_MOTOR_SPEED 4000
 boolean GHomed = 0;
 boolean SHomed = 1; //TODO:replace this
 boolean F1Homed = 0;
