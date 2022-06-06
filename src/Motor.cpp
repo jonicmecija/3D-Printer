@@ -6,6 +6,7 @@
 #include "Math.h"
 
 
+#define MAX_MOTOR_SPEED 100
 boolean GHomed = 0;
 boolean SHomed = 1; //TODO:replace this
 boolean F1Homed = 0;
@@ -26,9 +27,12 @@ double arcEndAngle = 0;
 double endAngle = 0;
 
 // variables for motor speed
-int32_t xMotorSpeed;
-int32_t yMotorSpeed;
-int32_t zMotorSpeed;
+int32_t xMotorSpeed = 0;
+int32_t yMotorSpeed = 0;
+int32_t zMotorSpeed = 0;
+
+
+
 
 AccelStepper Xstepper(AccelStepper::DRIVER, X_MOTOR_STEP, X_MOTOR_DIRECTION, false);
 AccelStepper Ystepper(AccelStepper::DRIVER, Y_MOTOR_STEP, Y_MOTOR_DIRECTION, false);
@@ -351,11 +355,11 @@ void updateGantry()
 // inputs are X position, Y position, Z position, and feed rate speed
 
 void getMotorSpeed(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t feedrate){
-  int32_t maxMotorSpeed; // To Do: need to set the max motor speed 
+  // feed rate does not used
 
-  
+  int32_t maxMotorSpeed = MAX_MOTOR_SPEED; // To Do: need to set the max motor speed in preprocessor directive
 
-  // final position variables
+  // calculate target position
   int32_t stepPositionX;
   int32_t stepPositionY;
   int32_t stepPositionZ;
@@ -388,6 +392,7 @@ void getMotorSpeed(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t feedr
     xMotorSpeed = maxMotorSpeed * (distanceToTravelX / distanceToTravelZ);
     yMotorSpeed = xMotorSpeed * (distanceToTravelY / distanceToTravelX);
   }
+
 }
 
 void setGantryTarget(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t feedrate)
@@ -397,23 +402,30 @@ void setGantryTarget(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t fee
   if (target_reached == 1)
   { 
     target_reached = 0;
-    int32_t stepPositionX;
-    int32_t stepPositionY;
-    int32_t stepPositionZ;
-    stepPositionX = (float)X_10um * (float)0.01 * (float)optXStepsPermm;
-    stepPositionY = (float)Y_10um * (float)0.01 * (float)optYStepsPermm;
-    stepPositionZ = (float)Z_10um * (float)0.01 * (float)optZStepsPermm;
+    // old code
 
-    // change max speed - so that each speed is proportional to eachother and doesnt use default speed
-    Xstepper.setMaxSpeed((float)feedrate * (float)optXStepsPermm);
-    Ystepper.setMaxSpeed((float)feedrate * (float)optYStepsPermm);
-    Zstepper.setMaxSpeed((float)feedrate * (float)optZStepsPermm);
+    // int32_t stepPositionX;
+    // int32_t stepPositionY;
+    // int32_t stepPositionZ;
+    // stepPositionX = (float)X_10um * (float)0.01 * (float)optXStepsPermm;
+    // stepPositionY = (float)Y_10um * (float)0.01 * (float)optYStepsPermm;
+    // stepPositionZ = (float)Z_10um * (float)0.01 * (float)optZStepsPermm;
+    // Xstepper.setMaxSpeed((float)feedrate * (float)optXStepsPermm);
+    // Ystepper.setMaxSpeed((float)feedrate * (float)optYStepsPermm);
+    // Zstepper.setMaxSpeed((float)feedrate * (float)optZStepsPermm);
 
-    // need to set acceleration - setAcceleration()
-    Xstepper.setMaxSpeed((float)feedrate * (float)optXStepsPermm);
-    Ystepper.setMaxSpeed((float)feedrate * (float)optYStepsPermm);
-    Zstepper.setMaxSpeed((float)feedrate * (float)optZStepsPermm);
+    // calculate speed before setting speed and acceleration
+    getMotorSpeed(X_10um, Y_10um,  Z_10um, feedrate);
 
+    // change max speed - so that each speed is proportional to eachother
+    Xstepper.setMaxSpeed(xMotorSpeed);
+    Ystepper.setMaxSpeed(yMotorSpeed);
+    Zstepper.setMaxSpeed(zMotorSpeed);
+
+    // change acceleration - setAcceleration()
+    Xstepper.setAcceleration(xMotorSpeed);
+    Ystepper.setAcceleration(yMotorSpeed);
+    Zstepper.setAcceleration(zMotorSpeed);
 
     Xstepper.moveTo(stepPositionX);
     Ystepper.moveTo(stepPositionY);
