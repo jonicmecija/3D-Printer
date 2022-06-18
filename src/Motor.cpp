@@ -32,6 +32,10 @@ int32_t xMotorSpeed = 0;
 int32_t yMotorSpeed = 0;
 int32_t zMotorSpeed = 0;
 
+// variables for proportional constants for speed and acceleration
+float proportionalConstantX = 0;
+float proportionalConstantY = 0;
+float proportionalConstantZ = 0;
 
 
 
@@ -369,65 +373,48 @@ void getMotorSpeed(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t feedr
   stepPositionZ = (float)Z_10um * (float)0.01 * (float)optZStepsPermm;
 
   // calculate the distance to travel in each axis
-  int32_t distanceToTravelX = abs(Xstepper.currentPosition() - stepPositionX);
-  int32_t distanceToTravelY = abs(Ystepper.currentPosition() - stepPositionY);
-  int32_t distanceToTravelZ = abs(Zstepper.currentPosition() - stepPositionZ);
+  float distanceToTravelX = abs(Xstepper.currentPosition() - stepPositionX);
+  float distanceToTravelY = abs(Ystepper.currentPosition() - stepPositionY);
+  float distanceToTravelZ = abs(Zstepper.currentPosition() - stepPositionZ);
 
-  // find which axis with longest distance to travel, and calculate proportional speeds for other axes
+  // calculate the proportional constance based on amount to travel in each access
+  
+  float totalDistance = distanceToTravelX + distanceToTravelY + distanceToTravelZ;
 
-  if(distanceToTravelX > distanceToTravelY && distanceToTravelX > distanceToTravelZ){
-    // X axis needs to travel greatest distance, set constant speed on X stepper motor
-    xMotorSpeed = maxMotorSpeed;
-    yMotorSpeed = maxMotorSpeed * (distanceToTravelY / distanceToTravelX);
-    zMotorSpeed = yMotorSpeed * (distanceToTravelZ / distanceToTravelY);
-  }
-  else if(distanceToTravelY > distanceToTravelX && distanceToTravelY > distanceToTravelZ){
-    // Y axis needs to travel greatest distance, set constant speed on Y stepper motor
-    yMotorSpeed = maxMotorSpeed;
-    xMotorSpeed = maxMotorSpeed * (distanceToTravelX / distanceToTravelY);
-    zMotorSpeed = xMotorSpeed * (distanceToTravelZ / distanceToTravelX);
-  }
-  else if(distanceToTravelZ > distanceToTravelX && distanceToTravelZ > distanceToTravelY){
-    // Z axis needs to travel greatest distance, set constant speed on Z stepper motor
-    zMotorSpeed = maxMotorSpeed;
-    xMotorSpeed = maxMotorSpeed * (distanceToTravelX / distanceToTravelZ);
-    yMotorSpeed = xMotorSpeed * (distanceToTravelY / distanceToTravelX);
-  }
+  proportionalConstantX = distanceToTravelX/totalDistance;
+  proportionalConstantY = distanceToTravelY/totalDistance;
+  proportionalConstantZ = distanceToTravelZ/totalDistance;
+  
 
 }
 
 void setGantryTarget(int32_t X_10um, int32_t Y_10um, int32_t Z_10um, int32_t feedrate)
 {
-  // Xstepper.currentPosition();
-
   if (target_reached == 1)
   { 
     target_reached = 0;
-    // old code
 
-    // int32_t stepPositionX;
-    // int32_t stepPositionY;
-    // int32_t stepPositionZ;
-    // stepPositionX = (float)X_10um * (float)0.01 * (float)optXStepsPermm;
-    // stepPositionY = (float)Y_10um * (float)0.01 * (float)optYStepsPermm;
-    // stepPositionZ = (float)Z_10um * (float)0.01 * (float)optZStepsPermm;
-    // Xstepper.setMaxSpeed((float)feedrate * (float)optXStepsPermm);
-    // Ystepper.setMaxSpeed((float)feedrate * (float)optYStepsPermm);
-    // Zstepper.setMaxSpeed((float)feedrate * (float)optZStepsPermm);
+    int32_t stepPositionX;
+    int32_t stepPositionY;
+    int32_t stepPositionZ;
+    stepPositionX = (float)X_10um * (float)0.01 * (float)optXStepsPermm;
+    stepPositionY = (float)Y_10um * (float)0.01 * (float)optYStepsPermm;
+    stepPositionZ = (float)Z_10um * (float)0.01 * (float)optZStepsPermm;
 
-    // calculate speed before setting speed and acceleration
+    // calculate proportional constants before setting speed and acceleration
     getMotorSpeed(X_10um, Y_10um,  Z_10um, feedrate);
 
-    // change max speed - so that each speed is proportional to eachother
-    Xstepper.setMaxSpeed(xMotorSpeed);
-    Ystepper.setMaxSpeed(yMotorSpeed);
-    Zstepper.setMaxSpeed(zMotorSpeed);
+    // change max speed - proportional constant * max speed
+    Xstepper.setMaxSpeed(proportionalConstantX*optExtruderMotorSpeed);
+    Ystepper.setMaxSpeed(proportionalConstantY*optExtruderMotorSpeed);
+    Zstepper.setMaxSpeed(proportionalConstantZ*optExtruderMotorSpeed);
 
-    // change acceleration - setAcceleration()
-    Xstepper.setAcceleration(xMotorSpeed);
-    Ystepper.setAcceleration(yMotorSpeed);
-    Zstepper.setAcceleration(zMotorSpeed);
+    // change acceleration - proportional constant * max acceleration
+    Xstepper.setAcceleration(proportionalConstantX*optExtruderMotorAccel);
+    Ystepper.setAcceleration(proportionalConstantY*optExtruderMotorAccel);
+    Zstepper.setAcceleration(proportionalConstantZ*optExtruderMotorAccel);
 
+    // once motor settings are set, command to move to position
     Xstepper.moveTo(stepPositionX);
     Ystepper.moveTo(stepPositionY);
     Zstepper.moveTo(stepPositionZ);
